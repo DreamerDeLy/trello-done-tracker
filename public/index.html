@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trello Done Tasks Tracker</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        h1 {
+            color: #0079bf; /* Trello blue */
+            text-align: center;
+        }
+		.container {
+			margin: 0 auto;
+			width: 80%;
+
+			max-width: 960px;
+
+			/* display: flex;
+			flex-direction: column;
+			gap: 10px; */
+		}
+		.panel {
+			background-color: white;
+			/* padding: 20px; */
+			overflow: hidden;
+			border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+		}
+		.chart-container {
+			width: 100%;
+		}
+        .loading {
+            text-align: center;
+            font-size: 1.2em;
+            color: #666;
+            padding: 20px;
+        }
+        hr {
+            border: 0;
+            height: 1px;
+            background-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
+            margin: 50px 0;
+        }
+		@media print {
+			.page-break { break-after: page; }
+		}
+    </style>
+</head>
+<body>
+    <h1>Trello Tasks Overview</h1>
+	<div style="text-align: center; font-family: monospace;">
+		<small>Боролись з прокрастинацією як могли</small>
+	</div>
+
+	<br>
+	<br>
+
+	<div class="container">
+		<h2>Total done tasks</h2>
+		<div class="panel">
+			<div id="barChart" class="chart-container loading">Loading completed tasks data...</div>
+		</div>
+
+		<hr>
+		<div class="page-break"></div>
+	
+		<h2>Individual Performance Ratio</h2>
+		<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+			<div class="panel">
+				<div id="evePieChart" class="chart-container loading">Loading Eve's data...</div>
+			</div>
+			<div class="panel">
+				<div id="dimaPieChart" class="chart-container loading">Loading Dima's data...<></div>
+			</div>
+		</div>
+
+		<hr>
+		<div class="page-break"></div>
+	
+		<h2>Daily Productivity (Last 30 Days)</h2>
+		<div class="panel">
+			<div id="dailyChart" class="chart-container loading">Loading daily statistics...</div>
+		</div>
+	
+		<hr>
+		<div class="page-break"></div>
+	
+		<h2>Weekly Productivity (Last 12 Weeks)</h2>
+		<div class="panel">
+			<div id="weeklyChart" class="chart-container loading">Loading weekly statistics...</div>
+		</div>
+	</div>
+
+	<br><br>
+
+    <script>
+        async function fetchAndRenderCharts() {
+            try {
+                const response = await fetch('/api/done-tasks');
+                const data = await response.json();
+
+                if (data.error) {
+                    document.getElementById('barChart').innerText = `Error: ${data.error}`;
+                    document.getElementById('evePieChart').innerText = `Error: ${data.error}`;
+                    document.getElementById('dimaPieChart').innerText = `Error: ${data.error}`;
+                    return;
+                } else {
+					document.getElementById('barChart').innerHTML = '';
+					document.getElementById('evePieChart').innerHTML = '';
+					document.getElementById('dimaPieChart').innerHTML = '';
+				}
+
+                // --- Bar Chart for Completed Tasks by Person ---
+                const barTrace = {
+                    x: ['Eve', 'Dima'],
+                    y: [data.eve.done, data.dima.done],
+                    type: 'bar',
+                    marker: {
+                        color: ['#0079bf', '#61bd4f'] // Trello blue and green
+                    }
+                };
+
+                const barLayout = {
+                    title: 'Completed Tasks by Person',
+                    xaxis: { title: 'Person' },
+                    yaxis: { title: 'Number of Tasks' }
+                };
+
+                Plotly.newPlot('barChart', [barTrace], barLayout);
+                document.getElementById('barChart').classList.remove('loading');
+
+
+                // --- Eve's Pie Chart ---
+                const evePieTrace = {
+                    labels: ['Completed', 'Pending'],
+                    values: [data.eve.done, data.eve.pending],
+                    type: 'pie',
+                    hoverinfo: 'label+percent',
+                    textinfo: 'value',
+                    marker: {
+                        colors: ['#0079bf', '#ebecf0']
+                    },
+                    name: "Eve's Tasks" // For legend if multiple pies in one plot
+                };
+
+                const evePieLayout = {
+                    title: "Eve's Task Completion Ratio"
+                };
+
+                Plotly.newPlot('evePieChart', [evePieTrace], evePieLayout);
+                document.getElementById('evePieChart').classList.remove('loading');
+
+                // --- Dima's Pie Chart ---
+                const dimaPieTrace = {
+                    labels: ['Completed', 'Pending'],
+                    values: [data.dima.done, data.dima.pending],
+                    type: 'pie',
+                    hoverinfo: 'label+percent',
+                    textinfo: 'value',
+                    marker: {
+                        colors: ['#61bd4f', '#ebecf0'] // Green for Dima's completed
+                    },
+                    name: "Dima's Tasks"
+                };
+
+                const dimaPieLayout = {
+                    title: "Dima's Task Completion Ratio"
+                };
+
+                Plotly.newPlot('dimaPieChart', [dimaPieTrace], dimaPieLayout);
+                document.getElementById('dimaPieChart').classList.remove('loading');
+
+                // Fetch and render daily statistics
+                await fetchAndRenderDailyStats();
+                
+                // Fetch and render weekly statistics
+                await fetchAndRenderWeeklyStats();
+
+            } catch (error) {
+                console.error('Error fetching or rendering charts:', error);
+                document.getElementById('barChart').innerText = 'Failed to load bar chart data.';
+                document.getElementById('evePieChart').innerText = 'Failed to load Eve\'s chart data.';
+                document.getElementById('dimaPieChart').innerText = 'Failed to load Dima\'s chart data.';
+                document.getElementById('dailyChart').innerText = 'Failed to load daily chart data.';
+                document.getElementById('weeklyChart').innerText = 'Failed to load weekly chart data.';
+            }
+        }
+
+        async function fetchAndRenderDailyStats() {
+            try {
+                const response = await fetch('/api/daily-stats');
+                const data = await response.json();
+
+                if (data.error) {
+                    document.getElementById('dailyChart').innerText = `Error: ${data.error}`;
+                    return;
+                }
+
+                // Convert data to arrays for plotting
+                const dates = Object.keys(data).sort();
+                const eveCounts = dates.map(date => data[date].eve || 0);
+                const dimaCounts = dates.map(date => data[date].dima || 0);
+                const totalCounts = dates.map(date => data[date].total || 0);
+
+                // Create traces for the daily chart
+                const eveTrace = {
+                    x: dates,
+                    y: eveCounts,
+                    name: 'Eve',
+                    type: 'bar',
+                    mode: 'lines+markers',
+                    line: { color: '#0079bf' },
+                    marker: { color: '#0079bf' }
+                };
+
+                const dimaTrace = {
+                    x: dates,
+                    y: dimaCounts,
+                    name: 'Dima',
+                    type: 'bar',
+                    mode: 'lines+markers',
+                    line: { color: '#61bd4f' },
+                    marker: { color: '#61bd4f' }
+                };
+
+                const totalTrace = {
+                    x: dates,
+                    y: totalCounts,
+                    name: 'Total',
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    line: { color: '#ff9f43', width: 3 },
+                    marker: { color: '#ff9f43' }
+                };
+
+                const dailyLayout = {
+                    title: 'Daily Task Completion Trends',
+                    xaxis: { 
+                        title: 'Date',
+                        type: 'date'
+                    },
+                    yaxis: { title: 'Tasks Completed' },
+                    showlegend: true
+                };
+
+                document.getElementById('dailyChart').innerHTML = '';
+                Plotly.newPlot('dailyChart', [eveTrace, dimaTrace, totalTrace], dailyLayout);
+                document.getElementById('dailyChart').classList.remove('loading');
+
+            } catch (error) {
+                console.error('Error fetching daily stats:', error);
+                document.getElementById('dailyChart').innerText = 'Failed to load daily statistics.';
+            }
+        }
+
+        async function fetchAndRenderWeeklyStats() {
+            try {
+                const response = await fetch('/api/weekly-stats');
+                const data = await response.json();
+
+                if (data.error) {
+                    document.getElementById('weeklyChart').innerText = `Error: ${data.error}`;
+                    return;
+                }
+
+                // Convert data to arrays for plotting
+                const weeks = Object.keys(data).sort();
+                const eveCounts = weeks.map(week => data[week].eve || 0);
+                const dimaCounts = weeks.map(week => data[week].dima || 0);
+                const totalCounts = weeks.map(week => data[week].total || 0);
+
+                // Create bar chart for weekly stats
+                const eveTrace = {
+                    x: weeks,
+                    y: eveCounts,
+                    name: 'Eve',
+                    type: 'bar',
+                    marker: { color: '#0079bf' }
+                };
+
+                const dimaTrace = {
+                    x: weeks,
+                    y: dimaCounts,
+                    name: 'Dima',
+                    type: 'bar',
+                    marker: { color: '#61bd4f' }
+                };
+
+                const weeklyLayout = {
+                    title: 'Weekly Task Completion Summary',
+                    xaxis: { title: 'Week' },
+                    yaxis: { title: 'Tasks Completed' },
+                    barmode: 'group',
+                    showlegend: true
+                };
+
+                document.getElementById('weeklyChart').innerHTML = '';
+                Plotly.newPlot('weeklyChart', [eveTrace, dimaTrace], weeklyLayout);
+                document.getElementById('weeklyChart').classList.remove('loading');
+
+            } catch (error) {
+                console.error('Error fetching weekly stats:', error);
+                document.getElementById('weeklyChart').innerText = 'Failed to load weekly statistics.';
+            }
+        }
+
+        fetchAndRenderCharts();
+    </script>
+</body>
+</html>
