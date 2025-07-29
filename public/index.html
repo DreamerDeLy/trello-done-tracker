@@ -16,6 +16,9 @@
             color: #0079bf; /* Trello blue */
             text-align: center;
         }
+		h2 {
+			page-break-before: always;
+		}
 		.container {
 			margin: 0 auto;
 			width: 80%;
@@ -48,15 +51,31 @@
             background-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
             margin: 50px 0;
         }
+		h2 {
+			break-before: always;
+		}
+		.header {
+			width: 100%;
+		}
 		@media print {
-			.page-break { break-after: page; }
+			.header {
+				width: 100%;
+				height: 56em;
+				
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+			}
 		}
     </style>
 </head>
 <body>
-    <h1>Trello Tasks Overview</h1>
-	<div style="text-align: center; font-family: monospace;">
-		<small>Боролись з прокрастинацією як могли</small>
+	<div class="header">
+		<h1>Trello Tasks Overview</h1>
+		<div style="text-align: center; font-family: monospace;">
+			<small>Боролись з прокрастинацією як могли</small>
+		</div>
 	</div>
 
 	<br>
@@ -69,7 +88,6 @@
 		</div>
 
 		<hr>
-		<div class="page-break"></div>
 	
 		<h2>Individual Performance Ratio</h2>
 		<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
@@ -82,7 +100,6 @@
 		</div>
 
 		<hr>
-		<div class="page-break"></div>
 	
 		<h2>Daily Productivity (Last 30 Days)</h2>
 		<div class="panel">
@@ -90,7 +107,6 @@
 		</div>
 	
 		<hr>
-		<div class="page-break"></div>
 	
 		<h2>Weekly Productivity (Last 12 Weeks)</h2>
 		<div class="panel">
