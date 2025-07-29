@@ -138,6 +138,41 @@ export async function getListsWithCards(listIds) {
 }
 
 /**
+ * Get all done lists with their cards and actions for statistics
+ * Optimized function to minimize API calls
+ * @returns {Promise<Array>} - Array of done lists with cards and actions
+ */
+export async function getDoneListsWithFullData() {
+    const lists = await getBoardLists();
+    const doneLists = lists.filter(list => list.name.toLowerCase().includes('done'));
+    
+    // Get all cards for done lists in parallel
+    const listsWithCards = await Promise.all(
+        doneLists.map(async (list) => {
+            const cards = await getCardsForList(list.id);
+            
+            // Get actions for all cards in parallel
+            const cardsWithActions = await Promise.all(
+                cards.map(async (card) => {
+                    const actions = await getCardActions(card.id);
+                    return {
+                        ...card,
+                        actions
+                    };
+                })
+            );
+            
+            return {
+                ...list,
+                cards: cardsWithActions
+            };
+        })
+    );
+    
+    return listsWithCards;
+}
+
+/**
  * Get configuration object with API credentials (for debugging)
  * @returns {Object} - Configuration object without sensitive data
  */

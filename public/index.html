@@ -95,7 +95,7 @@
 				<div id="evePieChart" class="chart-container loading">Loading Eve's data...</div>
 			</div>
 			<div class="panel">
-				<div id="dimaPieChart" class="chart-container loading">Loading Dima's data...<></div>
+				<div id="dimaPieChart" class="chart-container loading">Loading Dima's data...</div>
 			</div>
 		</div>
 
@@ -117,7 +117,7 @@
 	<br><br>
 
     <script>
-        async function fetchAndRenderCharts() {
+        async function fetchAndRenderPieChart() {
             try {
                 const response = await fetch('/api/done-tasks');
                 const data = await response.json();
@@ -193,12 +193,6 @@
                 Plotly.newPlot('dimaPieChart', [dimaPieTrace], dimaPieLayout);
                 document.getElementById('dimaPieChart').classList.remove('loading');
 
-                // Fetch and render daily statistics
-                await fetchAndRenderDailyStats();
-                
-                // Fetch and render weekly statistics
-                await fetchAndRenderWeeklyStats();
-
             } catch (error) {
                 console.error('Error fetching or rendering charts:', error);
                 document.getElementById('barChart').innerText = 'Failed to load bar chart data.';
@@ -209,125 +203,121 @@
             }
         }
 
-        async function fetchAndRenderDailyStats() {
+        async function fetchAndRenderStats() {
             try {
-                const response = await fetch('/api/daily-stats');
+                const response = await fetch('/api/statistics');
                 const data = await response.json();
 
                 if (data.error) {
                     document.getElementById('dailyChart').innerText = `Error: ${data.error}`;
+					document.getElementById('weeklyChart').innerText = `Error: ${data.error}`;
                     return;
                 }
 
-                // Convert data to arrays for plotting
-                const dates = Object.keys(data).sort();
-                const eveCounts = dates.map(date => data[date].eve || 0);
-                const dimaCounts = dates.map(date => data[date].dima || 0);
-                const totalCounts = dates.map(date => data[date].total || 0);
+				const dailyStats = data.daily || {};
+				const weeklyStats = data.weekly || {};
 
-                // Create traces for the daily chart
-                const eveTrace = {
-                    x: dates,
-                    y: eveCounts,
-                    name: 'Eve',
-                    type: 'bar',
-                    mode: 'lines+markers',
-                    line: { color: '#0079bf' },
-                    marker: { color: '#0079bf' }
-                };
-
-                const dimaTrace = {
-                    x: dates,
-                    y: dimaCounts,
-                    name: 'Dima',
-                    type: 'bar',
-                    mode: 'lines+markers',
-                    line: { color: '#61bd4f' },
-                    marker: { color: '#61bd4f' }
-                };
-
-                const totalTrace = {
-                    x: dates,
-                    y: totalCounts,
-                    name: 'Total',
-                    type: 'scatter',
-                    mode: 'lines+markers',
-                    line: { color: '#ff9f43', width: 3 },
-                    marker: { color: '#ff9f43' }
-                };
-
-                const dailyLayout = {
-                    title: 'Daily Task Completion Trends',
-                    xaxis: { 
-                        title: 'Date',
-                        type: 'date'
-                    },
-                    yaxis: { title: 'Tasks Completed' },
-                    showlegend: true
-                };
-
-                document.getElementById('dailyChart').innerHTML = '';
-                Plotly.newPlot('dailyChart', [eveTrace, dimaTrace, totalTrace], dailyLayout);
-                document.getElementById('dailyChart').classList.remove('loading');
-
+				renderWeeklyStats(weeklyStats);
+				renderDailyStats(dailyStats);
             } catch (error) {
                 console.error('Error fetching daily stats:', error);
                 document.getElementById('dailyChart').innerText = 'Failed to load daily statistics.';
             }
         }
 
-        async function fetchAndRenderWeeklyStats() {
-            try {
-                const response = await fetch('/api/weekly-stats');
-                const data = await response.json();
+		function renderDailyStats(data) {
+			// Convert data to arrays for plotting
+			const dates = Object.keys(data).sort();
+			const eveCounts = dates.map(date => data[date].eve || 0);
+			const dimaCounts = dates.map(date => data[date].dima || 0);
+			const totalCounts = dates.map(date => data[date].total || 0);
 
-                if (data.error) {
-                    document.getElementById('weeklyChart').innerText = `Error: ${data.error}`;
-                    return;
-                }
+			// Create traces for the daily chart
+			const eveTrace = {
+				x: dates,
+				y: eveCounts,
+				name: 'Eve',
+				type: 'bar',
+				mode: 'lines+markers',
+				line: { color: '#0079bf' },
+				marker: { color: '#0079bf' }
+			};
 
-                // Convert data to arrays for plotting
-                const weeks = Object.keys(data).sort();
-                const eveCounts = weeks.map(week => data[week].eve || 0);
-                const dimaCounts = weeks.map(week => data[week].dima || 0);
-                const totalCounts = weeks.map(week => data[week].total || 0);
+			const dimaTrace = {
+				x: dates,
+				y: dimaCounts,
+				name: 'Dima',
+				type: 'bar',
+				mode: 'lines+markers',
+				line: { color: '#61bd4f' },
+				marker: { color: '#61bd4f' }
+			};
 
-                // Create bar chart for weekly stats
-                const eveTrace = {
-                    x: weeks,
-                    y: eveCounts,
-                    name: 'Eve',
-                    type: 'bar',
-                    marker: { color: '#0079bf' }
-                };
+			const totalTrace = {
+				x: dates,
+				y: totalCounts,
+				name: 'Total',
+				type: 'scatter',
+				mode: 'lines+markers',
+				line: { color: '#ff9f43', width: 3 },
+				marker: { color: '#ff9f43' }
+			};
 
-                const dimaTrace = {
-                    x: weeks,
-                    y: dimaCounts,
-                    name: 'Dima',
-                    type: 'bar',
-                    marker: { color: '#61bd4f' }
-                };
+			const dailyLayout = {
+				title: 'Daily Task Completion Trends',
+				xaxis: { 
+					title: 'Date',
+					type: 'date'
+				},
+				yaxis: { title: 'Tasks Completed' },
+				showlegend: true
+			};
 
-                const weeklyLayout = {
-                    title: 'Weekly Task Completion Summary',
-                    xaxis: { title: 'Week' },
-                    yaxis: { title: 'Tasks Completed' },
-                    barmode: 'group',
-                    showlegend: true
-                };
+			document.getElementById('dailyChart').innerHTML = '';
+			Plotly.newPlot('dailyChart', [eveTrace, dimaTrace, totalTrace], dailyLayout);
+			document.getElementById('dailyChart').classList.remove('loading');
+		}
 
-                document.getElementById('weeklyChart').innerHTML = '';
-                Plotly.newPlot('weeklyChart', [eveTrace, dimaTrace], weeklyLayout);
-                document.getElementById('weeklyChart').classList.remove('loading');
+        function renderWeeklyStats(data) {
+			// Convert data to arrays for plotting
+			const weeks = Object.keys(data).sort();
+			const eveCounts = weeks.map(week => data[week].eve || 0);
+			const dimaCounts = weeks.map(week => data[week].dima || 0);
+			const totalCounts = weeks.map(week => data[week].total || 0);
 
-            } catch (error) {
-                console.error('Error fetching weekly stats:', error);
-                document.getElementById('weeklyChart').innerText = 'Failed to load weekly statistics.';
-            }
+			// Create bar chart for weekly stats
+			const eveTrace = {
+				x: weeks,
+				y: eveCounts,
+				name: 'Eve',
+				type: 'bar',
+				marker: { color: '#0079bf' }
+			};
+
+			const dimaTrace = {
+				x: weeks,
+				y: dimaCounts,
+				name: 'Dima',
+				type: 'bar',
+				marker: { color: '#61bd4f' }
+			};
+
+			const weeklyLayout = {
+				title: 'Weekly Task Completion Summary',
+				xaxis: { title: 'Week' },
+				yaxis: { title: 'Tasks Completed' },
+				barmode: 'group',
+				showlegend: true
+			};
+
+			document.getElementById('weeklyChart').innerHTML = '';
+			Plotly.newPlot('weeklyChart', [eveTrace, dimaTrace], weeklyLayout);
+			document.getElementById('weeklyChart').classList.remove('loading');
         }
 
-        fetchAndRenderCharts();
+        fetchAndRenderPieChart();
+
+		fetchAndRenderStats();
     </script>
 </body>
 </html>
