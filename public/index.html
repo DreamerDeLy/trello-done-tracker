@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trello Done Tasks Tracker</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+	<script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -111,6 +112,17 @@
 		<h2>Weekly Productivity (Last 12 Weeks)</h2>
 		<div class="panel">
 			<div id="weeklyChart" class="chart-container loading">Loading weekly statistics...</div>
+		</div>
+
+		<hr>
+
+		<h2>Calendars</h2>
+		<div class="panel">
+			<div id="calendarChartDima" class="chart-container loading">Loading calendar data...</div>
+		</div>
+		<br>
+		<div class="panel">
+			<div id="calendarChartEve" class="chart-container loading">Loading calendar data...</div>
 		</div>
 	</div>
 
@@ -276,6 +288,12 @@
 			document.getElementById('dailyChart').innerHTML = '';
 			Plotly.newPlot('dailyChart', [eveTrace, dimaTrace, totalTrace], dailyLayout);
 			document.getElementById('dailyChart').classList.remove('loading');
+
+			document.getElementById('calendarChartDima').innerHTML = '';
+			document.getElementById('calendarChartEve').innerHTML = '';
+			renderCalendarCharts(data);
+			document.getElementById('calendarChartDima').classList.remove('loading');
+			document.getElementById('calendarChartEve').classList.remove('loading');
 		}
 
         function renderWeeklyStats(data) {
@@ -314,6 +332,122 @@
 			Plotly.newPlot('weeklyChart', [eveTrace, dimaTrace], weeklyLayout);
 			document.getElementById('weeklyChart').classList.remove('loading');
         }
+
+		function renderCalendarCharts(data) {
+			// Get the date range for the last 365 days
+			const endDate = new Date(); 
+			endDate.setHours(0, 0, 0, 0);
+			const startDate = new Date(endDate);
+			startDate.setDate(startDate.getDate() - 364); 
+
+			console.log("startDate", startDate, "endDate", endDate)
+
+			// Get all dates in the range
+			const getDates = (start, end) => {
+				const dates = [];
+				let current = new Date(start);
+				while (current <= end) {
+					dates.push(new Date(current));
+					current.setDate(current.getDate() + 1);
+				}
+				return dates;
+			};
+
+			const dates = getDates(startDate, endDate);
+
+			console.log("dates", dates)
+
+			function toLocalISODate(date) {
+				const year = date.getFullYear();
+				const month = String(date.getMonth() + 1).padStart(2, '0');
+				const day = String(date.getDate()).padStart(2, '0');
+				return `${year}-${month}-${day}`;
+			}
+
+			// Data preparation for each user
+			function prepareUserData(userKey) {
+				return dates.map(date => {
+					const iso = toLocalISODate(date);
+					const val = data[iso]?.[userKey] ?? 0;
+					return {
+						date,
+						iso,
+						value: val,
+						weekOfYear: d3.timeWeek.count(d3.timeYear(date), date),
+						weekIndex: d3.timeWeek.count(startDate, date),
+						dayOfWeek: date.getDay()
+					};
+				});
+			}
+
+			// Graph render
+			function plotCalendar(userKey, containerId) {
+				const userData = prepareUserData(userKey);
+
+				console.log("userData", userData)
+
+				const x = userData.map(d => d.weekIndex);
+				const y = userData.map(d => d.dayOfWeek);
+				const z = userData.map(d => d.value);
+				const text = userData.map(d => `${d.iso}<br>${userKey}: ${d.value}`);
+
+				// Months ticks
+				const seenMonths = new Set();
+				const monthTicks = [];
+				userData.forEach(d => {
+					const m = d.date.getMonth();
+					if (!seenMonths.has(m)) {
+						seenMonths.add(m);
+						monthTicks.push({
+							weekIndex: d.weekIndex,
+							label: d.date.toLocaleString('uk-UA', { month: 'short' })
+						});
+					}
+				});
+
+				const trace = {
+					x,
+					y,
+					z,
+					text,
+					type: 'heatmap',
+					hoverinfo: 'text',
+					colorscale: [
+						[0, '#ebecf0'], 
+						[1, userKey == 'dima' ? '#61bd4f' : '#0079bf']
+					],
+					showscale: true
+				};
+
+				const layout = {
+					title: `Activity calendar: ${userKey}`,
+					height: 350,
+					//margin: { t: 40, l: 30, r: 10, b: 30 },
+					xaxis: {
+						tickvals: monthTicks.map(m => m.weekIndex),
+						ticktext: monthTicks.map(m => m.label),
+						showgrid: false,
+						zeroline: false,
+						showline: false
+					},
+					yaxis: {
+						tickvals: [0, 1, 2, 3, 4, 5, 6],
+						ticktext: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+						showgrid: false,
+						zeroline: false,
+						showline: false,
+						autorange: 'reversed'
+					}
+				};
+
+				console.log(trace, layout);
+
+				Plotly.newPlot(containerId, [trace], layout, {responsive: true});
+			}
+
+			plotCalendar('dima', 'calendarChartDima');
+			plotCalendar('eve', 'calendarChartEve');
+		}
 
         fetchAndRenderPieChart();
 
